@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -102,7 +103,7 @@ public class JavaDockerCodeSandbox implements CodeSandbox {
             return getErrorResponse(e);
         }
 
-        // ------------------------------  3. 创建容器，上传编译文件  ------------------------------
+        // ------------------------------  3. 拉取镜像 并 创建容器  ------------------------------
         // 获取 Docker Client
         DockerClient dockerClient = DockerClientBuilder.getInstance().build();
         // 拉取镜像
@@ -130,10 +131,13 @@ public class JavaDockerCodeSandbox implements CodeSandbox {
         CreateContainerCmd createContainerCmd = dockerClient.createContainerCmd(image);
         HostConfig hostConfig = new HostConfig();
         hostConfig.withMemory(100 * 1000 * 1000L);
+        hostConfig.withMemorySwap(0L);
         hostConfig.withCpuCount(1L);
         hostConfig.setBinds(new Bind(userCodeParentPath, new Volume("/app")));
         CreateContainerResponse createContainerResponse = createContainerCmd
                 .withHostConfig(hostConfig)
+                .withNetworkDisabled(true)
+                .withReadonlyRootfs(true)
                 .withAttachStdin(true)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
@@ -159,13 +163,14 @@ public class JavaDockerCodeSandbox implements CodeSandbox {
                     .withAttachStderr(true)
                     .exec();
             System.out.println("创建执行命令返回：" + execCreateCmdResponse);
+            String execId = execCreateCmdResponse.getId();
 
             ExecuteMessage executeMessage = new ExecuteMessage();
             final String[] message = {null};
             final String[] errorMessage = {null};
-            long time = 0L;
-
-            String execId = execCreateCmdResponse.getId();
+            long time = 0L;  // 记录程序运行的时间
+            // 判断是否超时
+            final boolean[] isTimeout = {true};
 
             // 获取占用的内存
             final long[] maxMemory = {0L};
@@ -202,6 +207,13 @@ public class JavaDockerCodeSandbox implements CodeSandbox {
             // 执行命令的回调函数
             ExecStartResultCallback execStartResultCallback = new ExecStartResultCallback() {
                 @Override
+                public void onComplete() {
+                    // 如果执行完成，说明没超时
+                    isTimeout[0] = false;
+                    super.onComplete();
+                }
+
+                @Override
                 public void onNext(Frame frame) {
                     StreamType streamType = frame.getStreamType();
                     if (StreamType.STDERR.equals(streamType)) {
@@ -218,7 +230,7 @@ public class JavaDockerCodeSandbox implements CodeSandbox {
                 stopWatch.start();
                 dockerClient.execStartCmd(execId)
                         .exec(execStartResultCallback)
-                        .awaitCompletion();
+                        .awaitCompletion(TIME_OUT, TimeUnit.MILLISECONDS);
                 stopWatch.stop();
                 time = stopWatch.getLastTaskTimeMillis();
                 statsCmd.close();
