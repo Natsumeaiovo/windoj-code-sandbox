@@ -3,3 +3,6 @@ server:
 spring:
   datasource:
     password: 123456
+  devtools:
+    livereload:
+      enabled: false

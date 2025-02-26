@@ -2,9 +2,12 @@ package com.serein.windojcodesandbox.utils;
 
 import cn.hutool.core.util.StrUtil;
 import com.serein.windojcodesandbox.model.ExecuteMessage;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.StopWatch;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author: serein
@@ -32,35 +35,35 @@ public class ProcessUtils {
                 System.out.println(opName + "成功: ");
                 // 分批获取进程的正常输出
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                StringBuilder outputStringBuilder = new StringBuilder();
+                List<String> outputStrList = new ArrayList<>();
                 // 逐行读取
                 String outputLine;
                 while ((outputLine = bufferedReader.readLine()) != null) {
-                    outputStringBuilder.append(outputLine).append("\n");
+                    outputStrList.add(outputLine);
                 }
-                executeMessage.setMessage(outputStringBuilder.toString());
+                executeMessage.setMessage(StringUtils.join(outputStrList, "\n"));
             } else {
                 // 异常退出
                 System.out.println(opName + "失败，错误码: " + exitValue);
                 // 分批获取进程的正常输出
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                StringBuilder outputStringBuilder = new StringBuilder();
+                List<String> outputStrList = new ArrayList<>();
                 // 逐行读取
                 String outputLine;
                 while ((outputLine = bufferedReader.readLine()) != null) {
-                    outputStringBuilder.append(outputLine).append("\n");
+                    outputStrList.add(outputLine);
                 }
-                executeMessage.setMessage(outputStringBuilder.toString());
+                executeMessage.setMessage(StringUtils.join(outputStrList, "\n"));
 
                 // 分批获取进程的错误输出
                 BufferedReader errorBufferedReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-                StringBuilder errorOutputStringBuilder = new StringBuilder();
+                List<String> errorOutputStrList = new ArrayList<>();
                 // 逐行读取
                 String errorOutputLine;
                 while ((errorOutputLine = errorBufferedReader.readLine()) != null) {
-                    errorOutputStringBuilder.append(errorOutputLine).append("\n");
+                    errorOutputStrList.add(errorOutputLine);
                 }
-                executeMessage.setErrorMessage(errorOutputStringBuilder.toString());
+                executeMessage.setErrorMessage(StringUtils.join(errorOutputStrList, "\n"));
             }
             stopWatch.stop();
             executeMessage.setTime(stopWatch.getLastTaskTimeMillis());
@@ -71,7 +74,7 @@ public class ProcessUtils {
     }
 
     /**
-     * 执行交互式进程并获取信息
+     * 执行交互式进程并获取信息，本项目不使用
      *
      * @param process
      * @param opName
